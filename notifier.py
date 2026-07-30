@@ -42,10 +42,16 @@ def send_email_alert(subject: str, html_body: str, to_email: str = EMAIL_TO) -> 
         return False
 
     try:
+        # Procesar lista de destinatarios (soporta múltiples correos separados por coma)
+        recipients = [addr.strip() for addr in to_email.split(",") if addr.strip()]
+        if not recipients:
+            logger.error("No hay direcciones de correo válidas en EMAIL_TO.")
+            return False
+
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = EMAIL_FROM or EMAIL_SMTP_USER
-        msg["To"] = to_email
+        msg["To"] = ", ".join(recipients)
         
         # Cabeceras de alta prioridad / importancia
         msg["X-Priority"] = "1 (Highest)"
@@ -55,15 +61,15 @@ def send_email_alert(subject: str, html_body: str, to_email: str = EMAIL_TO) -> 
         part = MIMEText(html_body, "html", "utf-8")
         msg.attach(part)
 
-        logger.info(f"Conectando al servidor SMTP {EMAIL_SMTP_SERVER}:{EMAIL_SMTP_PORT} para enviar correo a {to_email}...")
+        logger.info(f"Conectando al servidor SMTP {EMAIL_SMTP_SERVER}:{EMAIL_SMTP_PORT} para enviar correo a {recipients}...")
         with smtplib.SMTP(EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT, timeout=REQUEST_TIMEOUT_SECONDS) as server:
             server.ehlo()
             server.starttls()
             server.ehlo()
             server.login(EMAIL_SMTP_USER, EMAIL_SMTP_PASSWORD)
-            server.sendmail(msg["From"], [to_email], msg.as_string())
+            server.sendmail(msg["From"], recipients, msg.as_string())
 
-        logger.info(f"¡Correo urgente enviado exitosamente a {to_email}!")
+        logger.info(f"¡Correo urgente enviado exitosamente a todos los destinatarios: {recipients}!")
         return True
 
     except Exception as e:
