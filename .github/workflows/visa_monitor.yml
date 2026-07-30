@@ -1,0 +1,56 @@
+name: 🇦🇺 Monitoreo Automático Visa Work and Holiday 462 (Australia)
+
+on:
+  schedule:
+    # Se ejecuta automáticamente cada 15 minutos (cron en UTC)
+    # 24 horas al día, 7 días a la semana, 365 días al año
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    # Permite ejecutar el script manualmente con un botón desde la web de GitHub
+
+jobs:
+  check-visa-status:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Necesario para guardar visa_status.json en el repositorio
+
+    steps:
+      - name: 📥 Descargar código del repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🐍 Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🔍 Consultar estado de la visa y alertar si está ABIERTA
+        env:
+          EMAIL_ENABLED: "true"
+          EMAIL_TO: ${{ secrets.EMAIL_TO || 'maverick6576@gmail.com' }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM || secrets.EMAIL_SMTP_USER }}
+          EMAIL_SMTP_SERVER: "smtp.gmail.com"
+          EMAIL_SMTP_PORT: "587"
+          EMAIL_SMTP_USER: ${{ secrets.EMAIL_SMTP_USER }}
+          EMAIL_SMTP_PASSWORD: ${{ secrets.EMAIL_SMTP_PASSWORD }}
+          TELEGRAM_ENABLED: ${{ secrets.TELEGRAM_ENABLED || 'false' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN || '' }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || '' }}
+          DISCORD_ENABLED: ${{ secrets.DISCORD_ENABLED || 'false' }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL || '' }}
+        run: |
+          python main.py --check
+
+      - name: 💾 Persistir historial (visa_status.json) en GitHub
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add visa_status.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: actualizar estado de la visa [skip ci]" && git push)
