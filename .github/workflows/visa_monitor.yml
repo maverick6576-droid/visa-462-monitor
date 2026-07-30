@@ -7,6 +7,12 @@ on:
     - cron: '*/15 * * * *'
   workflow_dispatch:
     # Permite ejecutar el script manualmente con un botón desde la web de GitHub
+    inputs:
+      send_test_email:
+        description: '📧 Enviar correo de PRUEBA a maverick6576@gmail.com desde la nube'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   check-visa-status:
@@ -31,7 +37,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 🔍 Consultar estado de la visa y alertar si está ABIERTA
+      - name: 🔍 Consultar estado de la visa o enviar alerta de prueba
         env:
           EMAIL_ENABLED: "true"
           EMAIL_TO: ${{ secrets.EMAIL_TO || 'maverick6576@gmail.com' }}
@@ -46,7 +52,12 @@ jobs:
           DISCORD_ENABLED: ${{ secrets.DISCORD_ENABLED || 'false' }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL || '' }}
         run: |
-          python main.py --check
+          if [ "${{ github.event.inputs.send_test_email }}" = "true" ]; then
+            echo "⚡ Modo PRUEBA activado: Enviando correo de prueba desde los servidores de GitHub..."
+            python main.py --test-alert
+          else
+            python main.py --check
+          fi
 
       - name: 💾 Persistir historial (visa_status.json) en GitHub
         run: |
